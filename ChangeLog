@@ -1,0 +1,184 @@
+ ChangeLog for RudeShipping C++ Library
+
+ Copyright (C) 2003, 2004, 2005 Matthew Flood
+ See file AUTHORS for contact information
+
+ This file is part of RudeShipping.
+
+ RudeShipping is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
+
+ RudeShipping is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with RudeConfig; see the file COPYING.  If not, write to
+ the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ Boston, MA 02111-1307, USA.
+
+
+* Thu Apr 10 2006 Matt Flood <matt@rudeserver.com>
+- 3.1.1-1
+- First RPM Release
+
+
+---------------------------------------------------
+Release Version 2.2		Lib Version 3.1.1	June 29, 2005
+
+2005-06-22 Matthew Flood
+		** Objects Modified **
+		
+	* Renamed Shipment object to Package
+	* Renamed Package::setValue() to Package::setInsuredValue()
+	* Renamed Package::getValue() to Package::getInsuredValue()
+	* Renamed Package::setHeight() to Package::setHeightInches()
+	* Renamed Package::setWidth() to Package::setWidthInches()
+	* Renamed Package::setLength() to Package::setLengthInches()
+	* Renamed Package::getHeight() to Package::getHeightInches()
+	* Renamed Package::getWidth() to Package::getWidthInches()
+	* Renamed Package::getLength() to Package::getLengthInches()
+	* removed Package::isFragile()
+
+	* removed Package::getUSPSPackageSize()
+
+		** Objects created **
+		
+	* USPSPackageSizeFinder - Utility Class that tells you what USPS package size
+ 		a package is based on its dimensions and weight....
+		
+	* LiveRateRequest - Encapsulates an HTTP request and response.
+
+		** Modified Code **
+	* renamed source code files from lower case to mixed upper case
+	* moved files into subfolders for organization
+
+
+-------------
+--------------------------
+---------------------------------------------------
+Release Version 2.1		Lib Version 3.0.1
+
+2005-06-13 Matthew Flood
+	* Added ItalyProvider Object
+	* ProviderFactory can now build ItalyProvider
+	
+
+2005-06-08 Matthew Flood
+
+	Want Providers to LoadServices when they are initializing. Right now they are
+	loading services when calculate() is called.  This is bad because calculate can 
+	fail based on configuration, and if calculate() is called more than once,
+	all services are loaded again without removing already existing services. We don't
+	want concrete providers to have to remember to call loadServices, so we are going
+	to make Configure() non-virtual, and give concrete objects a virtual ConfigureServices
+   method that Configure() will call.
+	* Methods Removed / Renamed
+		virtual bool Provider::configure(Config &config) =0;
+		bool UnknownProvider::configure(Config &config) 
+		bool UPSProvider::configure(Config &config)
+		bool USPSIntlProvider::configure(Config &config)
+		bool USPSProvider::configure(Config &config)
+		
+	* Methods Added / Renamed
+		bool Provider::configure(Config &config);
+		virtual bool Provider::concreteConfigure(Config &config) =0;
+		bool UnknownProvider::concreteConfigure(Config &config) 
+		bool UPSProvider::concreteConfigure(Config &config)
+		bool USPSIntlProvider::concreteConfigure(Config &config)
+		bool USPSProvider::concreteConfigure(Config &config)
+		
+	* Methods Updated
+		bool LiveRateProvider::calculate(Address *src, Address *dest, Shipment *shipment)
+		bool Provider::loadServices(Config &config) (MADE THIS PRIVATE)
+
+
+
+	Wanted shipment to be responsible for converting its weight to various units
+	* Methods Removed
+		void Shipment::setWeight(double pounds);
+		double Shipment::getWeight();
+	* Methods Added
+	 	void Shipment::setWeightPounds(double weight);
+	 	void Shipment::setWeightOunces(double weight);
+	 	void Shipment::setWeightKilograms(double weight);
+	 	void Shipment::setWeightGrams(double weight);
+	 	double Shipment::getWeightPounds();
+	 	double Shipment::getWeightOunces();
+	 	double Shipment::getWeightKilograms();
+	 	double Shipment::getWeightGrams();
+	* Methods Updated
+		void RealImpl::resetPackage()
+		void RealImpl::addPackage(double length_in, double width_in, double height_in, double pounds)
+		void RealImpl::setPackageWeight(double pounds)
+		double RealImpl::getPackageWeight()
+		const char *UPSRequestBuilder::buildXML(Address *src, Address *dest, Shipment *shipment, Service *service)
+		const char *USPSIntlRequestBuilder::buildXML(Address *src, Address *dest, Shipment *shipment, Service *service)
+		const char *USPSRequestBuilder::buildXML(Address *src, Address *dest, Shipment *shipment, Service *service)
+		
+2005-06-01 Matthew Flood
+
+	Changes were made to allow the config file to be specified by the client.
+	Also, we wanted to raise configuration errors *before* rates are calculated.
+   * New Methods Added:
+		bool Shipping::initialize(const char *configfile)
+		virtual bool ShipImpl::initialize(const char *configfile) = 0
+		bool RealImpl::initialize(const char *configfile);
+
+
+	Previously, Abstract Provider was specialized towards XML Servers.  We needed it to be
+	more abstract, so we removed XML Server stuff and inserted a new abstract class
+	that inherits from Provider and provides its descendents with XML server socket stuff.
+	The existing RateServer providers were updated to inherit from this new class.
+	* Modified Classes:
+		Provider
+		UPSProvider
+		USPSProvider
+		USPSIntlProvider
+	* New Classes:
+		LiveRateProvider
+
+
+	USPS Country Codes were originally resolved using a config file.  Wanting to eliminate
+	the exfess baggage of needing that file in the program directory, we created an object
+	that holds the conversion information
+	* New classes:
+		UPSCodeToUSPSCountry
+
+
+	We stripped down the Address object by removing unused/unnecessary data fields and methods
+	so that it only includes city, state, country, zip and isResidence.  Also removed the config
+	object that Address was using to convert UPS codes to USPS countries.
+	* Deleted Methods
+		no need to mention (e.g. can't remember) - none in the interface (Shipping)
+
+	For Australia Post, we created some utility objects
+	* New Objects
+		AbstractZoneChart - 	provides the interface for zone charts.  Basically, 
+									you give the ZonChart object a set of source zones and 
+									destination zones (because some addresses fall into one
+									or more zones). Then you have the ZoneChart calculate(), 
+									which results in setting the lowest rate for all 
+									zone combinations
+		AusPostParcelZoneChart - returns the per-kilogram charge for parcels shipped within australia
+		AusPostParcelZoneChart - returns the per-kilogram charge for express packages shipped within australia	
+		AusZoneResolver - Given an Australian post code, returns the AusPost postal zone codes that apply
+								These codes can then be used in the Aussie ZoneCharts.
+
+
+-------------
+--------------------------
+---------------------------------------------------
+Release 2.0  Lib Version 2.0.0
+
+2005-05-25 Matthew Flood
+
+	RudeShipping converted to Open Source Project.
+
+
+------------------------------------------------------------------------------------
+
+--End of Change Log--
